@@ -1,0 +1,14 @@
+# Generated files by hugo
+/public/
+/resources/_gen/
+/assets/jsconfig.json
+hugo_stats.json
+
+# Exectable may be added to repository
+hugo.exe
+hugo.darwin
+hugo.linux
+
+# temp lock file
+/.hugo_build.lock
+
