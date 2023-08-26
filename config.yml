@@ -45,10 +45,10 @@ params:
   assets:
     # disableHLJS: true # to disable highlight.js
     # disableFingerprinting: true
-    favicon: "static/favicons/favicon.ico"
-    favicon16x16: "static/favicons/favicon-16x16.png"
-    favicon32x32: "static/favicons/favicon-32x32.png"
-    apple_touch_icon: "static/favicons/apple-touch-icon.png"
+    favicon: "/favicons/favicon.ico"
+    favicon16x16: "/favicons/favicon-16x16.png"
+    favicon32x32: "/favicons/favicon-32x32.png"
+    apple_touch_icon: "/favicons/apple-touch-icon.png"
     # safari_pinned_tab: "static/favicons/safari-pinned-tab.svg"
 
   label:
@@ -77,12 +77,12 @@ params:
     Content: Welcome to my blog
 
   socialIcons:
-    - name: twitter
-      url: "https://twitter.com/"
-    - name: stackoverflow
-      url: "https://stackoverflow.com"
     - name: github
-      url: "https://github.com/"
+      url: "https://github.com/ludics"
+    - name: linkedin
+      url: "https://www.linkedin.com/in/ludics"
+    - name: email
+      url: "mailto:me@ludi.dev"
 
   analytics:
     # google:
@@ -93,7 +93,7 @@ params:
     #   SiteVerificationTag: "XYZabc"
 
   cover:
-    hidden: true # hide everywhere but not in structured data
+    hidden: false # hide everywhere but not in structured data
     hiddenInList: true # hide on list pages and home
     hiddenInSingle: true # hide on single page
 
