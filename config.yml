@@ -1,18 +1,41 @@
 baseURL: "https://ludi.dev"
 title: ludi.dev
-paginate: 5
+paginate: 10
 theme: PaperMod
+# languageCode: zh-cn # en-us
 
+hasCJKLanguage: true # 自动检测是否包含中文日文韩文,如果文章中使用了很多中文引号的话可以开启
+enableInlineShortcodes: true
+enableEmoji: true # 允许使用 Emoji 表情，建议 true
 enableRobotsTXT: true
 buildDrafts: false
 buildFuture: false
 buildExpired: false
-
+enableEmoji: true
+pygmentsUseClasses: true
 # googleAnalytics: UA-123-45
 
 minify:
   disableXML: true
   minifyOutput: true
+
+permalinks:
+  post: "/:title/"
+  # post: "/:year/:month/:day/:title/"
+
+# defaultContentLanguage: zh # 最顶部首先展示的语言页面
+# defaultContentLanguageInSubdir: true
+
+# languages:
+#   zh:
+#     languageName: "Chinese"
+#     weight: 1
+
+outputs:
+  home:
+    - HTML
+    - RSS
+    - JSON # is necessary
 
 params:
   env: production # to enable google analytics, opengraph, twitter-cards and schema.
@@ -22,7 +45,7 @@ params:
   author: "Lu Di"
   # author: ["Me", "You"] # multiple authors
   # images: ["<link or path of image for opengraph, twitter-cards>"]
-  DateFormat: "January 2, 2006"
+  DateFormat: "2006-01-02"
   defaultTheme: auto # dark, light
   disableThemeToggle: false
 
@@ -113,20 +136,33 @@ params:
     minMatchCharLength: 0
     limit: 10 # refer: https://www.fusejs.io/api/methods.html#search
     keys: ["title", "permalink", "summary", "content"]
+
+# taxonomies:
+#   category: categories
+#   tag: tags
+
 menu:
   main:
-    - identifier: categories
-      name: categories
-      url: /categories/
+    - identifier: search
+      name: search
+      url: /search/
       weight: 10
-    - identifier: tags
-      name: tags
-      url: /tags/
-      weight: 20
+    - identifier: archives
+      name: archives
+      url: /archives/
+      weight: 15
+    # - identifier: categories
+    #   name: categories
+    #   url: /categories/
+    #   weight: 20
+    # - identifier: tags
+    #   name: tags
+    #   url: /tags/
+    #   weight: 30
     - identifier: ludics.cn
       name: ludics.cn
       url: https://www.ludics.cn
-      weight: 30
+      weight: 40
 # Read: https://github.com/adityatelange/hugo-PaperMod/wiki/FAQs#using-hugos-syntax-highlighter-chroma
 pygmentsUseClasses: true
 markup:
