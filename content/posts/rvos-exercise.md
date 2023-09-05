@@ -280,3 +280,416 @@ Disassembly of section .text:
   20:   0141                    addi    sp,sp,16
   22:   8082                    ret
 ```
+
+## 5-1
+
+> 对 `code/asm/sub` 执行反汇编，查看 `sub x5, x6, x7` 这条汇编指令对应的机器指令的编码，并对照RISC-V 的 specificaion 自己解析该条指令的编码。
+> 现知道某条 RISC-V 的机器指令在内存中的值为 `b3 05 95 00`，从左往右为从低地址到高地址，单位为字节，请将其翻译为对应的汇编指令。
+
+反汇编命令：
+```sh
+riscv64-unknown-elf-objdump -S test.elf
+```
+结果：
+```
+test.elf:     file format elf32-littleriscv
+
+
+Disassembly of section .text:
+
+80000000 <_start>:
+
+        .text                   # Define beginning of text section
+        .global _start          # Define entry _start
+
+_start:
+        li x6, -1               # x6 = -1
+80000000:       fff00313                li      t1,-1
+        li x7, -2               # x7 = -2
+80000004:       ffe00393                li      t2,-2
+        sub x5, x6, x7          # x5 = x6 - x7
+80000008:       407302b3                sub     t0,t1,t2
+
+8000000c <stop>:
+
+stop:
+        j stop                  # Infinite loop to stop execution
+8000000c:       0000006f                j       8000000c <stop>
+```
+可以看到 `sub x5, x6, x7` 对应的指令编码为 `407302b3`，、转化为二进制为：
+```
+  4    0    7    3    0    2    b    3
+------
+0100 0000 0111 0011 0000 0010 1011 0011
+```
+对照 RISC-V 的 [specificaion](https://github.com/plctlab/riscv-operating-system-mooc/blob/main/refs/riscv-spec-20191213.pdf) p130，可以看到这条指令对应的正是 `sub x5, x6, x7`。
+
+
+![](/images/rvos-exercise-5-1.png)
+
+对于指令 `b3 05 95 00`，从左到右为低地址到高地址，因此真正的指令为 `00 95 05 b3`，转化为二进制为：
+```
+  0    0    9    5    0    5    b    3
+------
+0000 0000 1001 0101 0000 0101 1011 0011
+```
+同样对照 RISC-V 的 specificaion，可以看到这条指令对应的是 `add x11, x10, x9`。
+
+## 5-2
+
+> 假设有如下这么一段 C 语言程序代码，尝试编写一段汇编代码，达到等效的结果，并采用 gdb 调试查看执行结果，注意请使用寄存器来存放变量的值：
+>```c
+> register int a, b, c, d, e; 
+> b = 1; 
+> c = 2; 
+> e = 3; 
+> a = b + c; 
+> d = a - e;
+>```
+
+对应的汇编代码为：
+```asm
+    .text
+    .global _start
+_start:
+    li a0, 1
+    li a1, 2
+    li a2, 3
+    add a3, a0, a1
+    sub a4, a3, a2
+    j _start
+.end      # End of file
+
+```
+
+## 5-3
+
+> 假设有如下这么一段 C 语言程序代码，尝试编写一段汇编代码，达到等效的结果，并采用 gdb 调试查看执行结果，注意请使用寄存器来存放变量的值：
+>```c
+> register int a, b, c, d, e;
+> b = 1;
+> c = 2;
+> d = 3;
+> e = 4;
+> a = (b + c) - (d + e);
+>```
+
+对应的汇编代码为：
+```asm
+    .text
+    .global _start
+_start:
+    li a0, 1
+    li a1, 2
+    li a2, 3
+    li a3, 4
+    add a4, a0, a1
+    add a5, a2, a3
+    sub a6, a4, a5
+    j _start
+.end      # End of file
+
+```
+
+## 5-4
+
+> 给定一个 32 位数 `0x87654321`，先编写 c 程序，将其低 16 位 (`0x4321`) 和高 16 位 (`0x8765`) 分别分离出来保存到独立的变量中；完成后再尝试采用汇编语言实现类似的效果。
+
+C 语言代码：
+```c
+#include <stdio.h>
+
+int main()
+{
+    unsigned int a = 0x87654321;
+    unsigned int low = a << 16 >> 16;
+    unsigned int high = a >> 16;
+    printf("low: %x, high: %x\n", low, high);
+    return 0;
+}
+```
+
+汇编代码：
+```asm
+    .text
+    .global _start
+_start:
+    li a0, 0x87654321
+    slli a1, a0, 16
+    srli a1, a1, 16
+    srli a2, a0, 16
+    j _start
+.end      # End of file
+```
+
+## 5-5
+
+> 假设有如下这么一段 C 代码：
+>```c
+> int array[2] = {0x11111111, 0xffffffff}; 
+> int i = array[0]; 
+> int j = array[1];
+>```
+> 尝试用汇编语句实现等效的功能。
+
+汇编代码：
+```asm
+    .data
+array: .word 0x11111111, 0xffffffff
+
+    .text
+    .global _start
+_start:
+    la t0, array # load address of array into t0
+    lw a0, 0(t0) # load first element of array into a0 (i)
+    lw a1, 4(t0) # load second element of array into a1 (j)
+    j _start     # Jump to _start
+.end      # End of file
+```
+
+## 5-6
+
+> 在内存中定义一个结构体变量，编写汇编程序，用宏方式（``.macro/.endm`）实现对结构体变量的成员赋值以及读取该结构体变量的成员的值到寄存器变量中。等价的 c 语言的示例代码如下，供参考：
+>```c
+> struct S { 
+>   unsigned int a; 
+>   unsigned int b; 
+> }; 
+>  
+> struct S s = {0}; 
+>  
+> #define set_struct(s) \ 
+>   s.a = a; \ 
+>   s.b = b; 
+>  
+> #define get_struct(s) \ 
+>   a = s.a; \ 
+>   b = s.b; 
+>  
+> void foo() 
+> { 
+>   register unsigned int a = 0x12345678; 
+>   register unsigned int b = 0x87654321; 
+>   set_struct(s); 
+>   a = 0; 
+>   b = 0; 
+>   get_struct(s); 
+> }
+>```
+
+汇编代码：
+```asm
+    .data
+s: .word 0, 0
+
+.macro set_struct st
+    la t0, \st
+    sw a0, 0(t0)
+    sw a1, 4(t0)
+.endm
+
+.macro get_struct st
+    la t0, \st
+    lw a0, 0(t0)
+    lw a1, 4(t0)
+.endm
+
+    .text
+    .global _start
+_start:
+    li a0, 0x12345678 # a = 0x12345678
+    li a1, 0x87654321 # b = 0x87654321
+    set_struct s
+    li a0, 0
+    li a1, 0 
+    get_struct s
+    j _start
+.end
+```
+
+## 5-7
+
+> 编写汇编指令，使用条件分支指令循环遍历一个字符串数组，获取该字符串的⻓度。等价的 c 语言的示例代码如下，供参考：
+>```c
+> char array[] = {'h', 'e', 'l', 'l', 'o', ',', 'w', 'o', 'r', 'l', 'd', '!', '\0'}; 
+> int len = 0; 
+> while (array[len] != '\0') { 
+>   len++; 
+> }
+>```
+
+汇编代码：
+```asm
+    .data
+array: .byte 'h', 'e', 'l', 'l', 'o', ',', 'w', 'o', 'r', 'l', 'd', '!', 0
+len: .word 0
+
+    .text
+    .global _start
+_start:
+    la t0, array
+    la t1, len
+    li t2, 0
+loop:
+    lb a0, 0(t0)
+    beqz a0, end
+    addi t2, t2, 1
+    addi t0, t0, 1
+    j loop
+end:
+    sw t2, 0(t1)
+stop:
+    j stop
+.end
+```
+
+## 5-8
+
+> 阅读 [code/asm/cc_leaf](https://github.com/plctlab/riscv-operating-system-mooc/tree/main/code/asm/cc_leaf) 和 [code/asm/cc_nested](https://github.com/plctlab/riscv-operating-system-mooc/tree/main/code/asm/cc_nested) 的例子代码，理解 RISC-V 的函数调用约定。在此基础上编写汇编程序实现以下功能，等价的 c 语言的示例代码如下，供参考：
+>```c
+> unsigned int square(unsigned int i)
+> {
+>   return i * i;
+> }
+>
+> unsigned int sum_squares(unsigned int i)
+> {
+>   unsigned int sum = 0;
+>   for (int j = 1; j <= i; j++) {
+>     sum += square(j);
+>   }
+>   return sum;
+> }
+>
+> void _start()
+> {
+>   sum_squares(3);
+> }
+>```
+
+汇编代码：
+```asm
+    .text
+    .global _start
+_start:
+    la sp, stack_end
+    li a0, 3
+    call sum_squares
+    addi s0, a0, 0
+    li a0, 4
+    call sum_squares
+    addi s1, a0, 0
+
+stop:
+    j stop
+
+sum_squares:
+    # prologue
+    addi sp, sp, -16
+    sw s0, 0(sp)
+    sw s1, 4(sp)
+    sw s2, 8(sp)
+    sw ra, 12(sp)
+
+    # body
+    li s0, 0 # sum
+    li s1, 1 # j
+    addi s2, a0, 0 # i
+sum_sq_loop:
+    bgt s1, s2, sum_sq_end
+    addi a0, s1, 0
+    call square
+    add s0, s0, a0
+    addi s1, s1, 1
+    j sum_sq_loop
+sum_sq_end:
+    addi a0, s0, 0
+    # epilogue
+    lw s0, 0(sp)
+    lw s1, 4(sp)
+    lw s2, 8(sp)
+    lw ra, 12(sp)
+    addi sp, sp, 16
+    ret
+
+square:
+    # prologue
+    addi sp, sp, -12
+    sw s0, 0(sp)
+    sw s1, 4(sp)
+    sw s2, 8(sp)
+
+    # body
+    addi s0, a0, 0
+    addi s1, a0, 0
+    mul s2, s0, s1
+    addi a0, s2, 0
+
+    # epilogue
+    lw s0, 0(sp)
+    lw s1, 4(sp)
+    lw s2, 8(sp)
+    addi sp, sp, 12
+    ret
+
+stack_start:
+    .rept 64
+    .word 0
+    .endr
+stack_end:
+    .end
+```
+
+## 5-9
+
+> 在 C 函数中嵌入一段汇编，实现 foo 函数中的 `c = a * a + b * b;` 这句 c 语言的同等功能。
+>```c
+> int foo(int a, int b)
+> {
+>   int c;
+>   c = a * a + b * b;
+>   return c;
+> }
+>```
+
+代码为：
+```c
+int foo(int a, int b)
+{
+    int c;
+    asm volatile(
+        "mul %0, %1, %1\n\t"
+        "mul t0, %2, %2\n\t"
+        "add %0, %0, t0\n\t"
+        : "=r"(c)
+        : "r"(a), "r"(b)
+        : "t0"
+    );
+    return c;
+}
+```
+
+调用 `foo` 的汇编代码为：
+```asm
+
+    .text
+    .global _start
+    .global foo
+_start:
+    la sp, stack_end
+    li a0, 3
+    li a1, 4
+    call foo
+    mv s0, a0
+
+stop:
+    j stop
+nop
+
+stack_start:
+    .rept 32
+    .word 0
+    .endr
+stack_end:
+    .end
+```
