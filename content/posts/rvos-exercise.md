@@ -6,6 +6,11 @@ draft: false
 
 最近看了中科大汪辰老师的 RVOS 课程视频（[视频](https://www.bilibili.com/video/BV1Q5411w7z5/)，[项目](https://github.com/plctlab/riscv-operating-system-mooc)），准备写一下课程的练习，在这里记录一下。
 
+练习的代码提交到了 [rvos-exercise](https://github.com/ludics/riscv-operating-system-mooc/tree/exercise/code/exercises)，其中：
+- 3-1 与 3-2 的 commit 为 [3-1](https://github.com/ludics/riscv-operating-system-mooc/commit/dd7e928fc9b080b4627ff75bb90e64d640b7cc60)；
+- 4-1 的 commit 为 [4-1](https://github.com/ludics/riscv-operating-system-mooc/commit/2ed54b37544c11a6272d0be1c4c15b0fcc67d366)；
+- 5-2 ～ 5-9 的 commit 为 [5-2](https://github.com/ludics/riscv-operating-system-mooc/commit/7c812527a8bb5bb9b617ca1ce67aba54d9eb4fc4)。
+
 ## 3-1
 
 > 使用 gcc 编译代码并使用 binutils 工具对生成的目标文件和可执行文件（ELF 格式）进行分析。具体要求如下：
