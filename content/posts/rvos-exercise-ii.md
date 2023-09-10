@@ -180,7 +180,7 @@ stacks:
 
 ## 7-2
 
-> 参考 `code/os/01-helloRVOS`，在此基础上增加采用轮询方式读取控制台上输入的字符并 **回显** 在控制
+> 参考 [`code/os/01-helloRVOS`](https://github.com/ludics/riscv-operating-system-mooc/tree/exercise/code/os/01-helloRVOS)，在此基础上增加采用轮询方式读取控制台上输入的字符并 **回显** 在控制
 台上。另外用户按下回⻋后能够另起一行从头开始。
 
 练习的代码地址为 [ex_7_2](https://github.com/ludics/riscv-operating-system-mooc/tree/exercise/code/exercises/ex_7_2)。

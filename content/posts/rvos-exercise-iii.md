@@ -6,7 +6,7 @@ draft: false
 
 ## 8-1
 
-> 要求：参考 `code/os/02-memanagement`，在 page 分配的基础上实现更细颗粒度的，精确到字节为单位的内存管理。要求实现如下接口，具体描述参考 `man(3) malloc`：
+> 要求：参考 [`code/os/02-memanagement`](https://github.com/ludics/riscv-operating-system-mooc/tree/exercise/code/os/02-memanagement)，在 page 分配的基础上实现更细颗粒度的，精确到字节为单位的内存管理。要求实现如下接口，具体描述参考 `man(3) malloc`：
 > - `void *malloc(size_t size);`
 > - `void free(void *ptr);`
 
