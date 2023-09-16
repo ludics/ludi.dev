@@ -12,7 +12,14 @@ draft: false
 
 练习的代码地址为 [ex_8_1](https://github.com/ludics/riscv-operating-system-mooc/tree/exercise/code/exercises/ex_8_1)，其中对应修改的 commit 为 [malloc_and_free](https://github.com/ludics/riscv-operating-system-mooc/commit/9d06a6bf04c789d639cbb18e3c51ffbbfeb72401)。
 
-基于已有的 `page_alloc` 和 `page_free` 实现 `malloc` 和 `free` 函数。代码如下：
+基于已有的 `page_alloc` 和 `page_free` 实现 `malloc` 和 `free` 函数。设计思路为：
+1. 每个内存块有一个 header 和 footer，大小各为 4 bytes，记录这个内存块的大小，以及是否已经分配；通过 header 和 footer，内存块可以双向遍历，方便合并内存块，以及查找空闲内存块。
+2. 内存块的大小为 4 bytes 的整数倍，如果分配的大小不是 4 bytes 的整数倍，需要补齐到 4 bytes 的整数倍。
+3. 分配内存块时，采用 first fit 策略，从头开始遍历所有的内存块，找到第一个满足大小的内存块，如果没有找到，不断申请新的页，直到找到满足大小的内存块；如果所有的页都不够用，分配失败，同时回收新申请的页；如果内存块的大小大于需要的大小，将这个内存块分割成两个内存块，一个分配，一个空闲。
+4. 释放内存块时，将这个内存块标记为未分配，然后检查前后的内存块是否空闲，如果空闲，合并内存块。
+5. 为了方便测试，内存块的大小最大为 64 M，超过这个大小的分配失败。
+
+代码如下：
 ```c
 #include "os.h"
 
