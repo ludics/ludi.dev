@@ -10,7 +10,7 @@ draft: false
 > - `void *malloc(size_t size);`
 > - `void free(void *ptr);`
 
-练习的代码地址为 [ex_8_1](https://github.com/ludics/riscv-operating-system-mooc/tree/exercise/code/exercises/ex_8_1)，其中对应修改的 commit 为 [malloc_and_free](https://github.com/ludics/riscv-operating-system-mooc/commit/9d06a6bf04c789d639cbb18e3c51ffbbfeb72401)。
+练习的代码地址为 [ex_8_1](https://github.com/ludics/riscv-operating-system-mooc/tree/exercise/code/exercises/ex_8_1)，其中对应修改的 commit 为 [9d06a6bf04c](https://github.com/ludics/riscv-operating-system-mooc/commit/9d06a6bf04c789d639cbb18e3c51ffbbfeb72401)。
 
 基于已有的 `page_alloc` 和 `page_free` 实现 `malloc` 和 `free` 函数。设计思路为：
 1. 每个内存块有一个 header 和 footer，大小各为 4 bytes，记录这个内存块的大小，以及是否已经分配；通过 header 和 footer，内存块可以双向遍历，方便合并内存块，以及查找空闲内存块。

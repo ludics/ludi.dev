@@ -177,7 +177,6 @@ stacks:
   .end        # End of file
 ```
 
-
 ## 7-2
 
 > 参考 [`code/os/01-helloRVOS`](https://github.com/ludics/riscv-operating-system-mooc/tree/exercise/code/os/01-helloRVOS)，在此基础上增加采用轮询方式读取控制台上输入的字符并 **回显** 在控制
