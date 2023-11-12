@@ -1,365 +1,399 @@
 ---
 title: "Rvos Exercise Notes III"
-date: 2023-09-10T22:20:07+08:00
+date: 2023-09-10T22:35:46+08:00
 draft: false
 ---
 
-## 8-1
+## 9-1
 
-> 要求：参考 [`code/os/02-memanagement`](https://github.com/ludics/riscv-operating-system-mooc/tree/exercise/code/os/02-memanagement)，在 page 分配的基础上实现更细颗粒度的，精确到字节为单位的内存管理。要求实现如下接口，具体描述参考 `man(3) malloc`：
-> - `void *malloc(size_t size);`
-> - `void free(void *ptr);`
+> 要求：参考 [`code/os/04-multitask`](https://github.com/ludics/riscv-operating-system-mooc/tree/exercise/code/os/04-multitask)，在此基础上进一步改进任务管理功能。具体要求：
+> - 改进 `task_create()`，提供更多的参数，具体改进后的函数如下所示：
+> ```c
+> int task_create(void (*task) (void *param), void *param, uint8_t priority);
+> ```
+> 其中，`param` 用于在创建任务执行函数时可带入参数，如果没有参数则传入 `NULL` 即可；`priority` 用于指定任务的优先级，目前要求最多支持 256 级，0 最高，依此类推。同时修改任务调度算法，在原先简单轮转的基础上支持按照优先级排序，优先选择优先级高的任务执行，如果优先级相同则采用简单轮转的方式。
+> - 增加任务退出接口 `task_exit()`，当前任务可以通过调用该接口退出执行，内核负责将该任务回收，并调度下一个可运行任务。建议的接口函数如下：
+> ```c
+> void task_exit(void);
+> ```
 
-练习的代码地址为 [ex_8_1](https://github.com/ludics/riscv-operating-system-mooc/tree/exercise/code/exercises/ex_8_1)，其中对应修改的 commit 为 [9d06a6bf04c](https://github.com/ludics/riscv-operating-system-mooc/commit/9d06a6bf04c789d639cbb18e3c51ffbbfeb72401)。
+### 代码分析
 
-基于已有的 `page_alloc` 和 `page_free` 实现 `malloc` 和 `free` 函数。设计思路为：
-1. 每个内存块有一个 header 和 footer，大小各为 4 bytes，记录这个内存块的大小，以及是否已经分配；通过 header 和 footer，内存块可以双向遍历，方便合并内存块，以及查找空闲内存块。
-2. 内存块的大小为 4 bytes 的整数倍，如果分配的大小不是 4 bytes 的整数倍，需要补齐到 4 bytes 的整数倍。
-3. 分配内存块时，采用 first fit 策略，从头开始遍历所有的内存块，找到第一个满足大小的内存块，如果没有找到，不断申请新的页，直到找到满足大小的内存块；如果所有的页都不够用，分配失败，同时回收新申请的页；如果内存块的大小大于需要的大小，将这个内存块分割成两个内存块，一个分配，一个空闲。
-4. 释放内存块时，将这个内存块标记为未分配，然后检查前后的内存块是否空闲，如果空闲，合并内存块。
-5. 为了方便测试，内存块的大小最大为 64 M，超过这个大小的分配失败。
+首先看 [`code/os/03-contextswitch`](https://github.com/ludics/riscv-operating-system-mooc/tree/exercise/code/os/03-contextswitch)。
 
-代码如下：
+上下文结构体 `struct context` 中保存着初 `x0` 外的 31 个寄存器的值。OS 初始化时，会调用 `sched_init()` 函数，首先将 `mscratch` 寄存器设置为 0，然后将用户任务 `user_task0` 的地址保存到 `ctx_task.ra`，将任务栈地址保存到 `ctx_task.sp`。`schedule` 函数执行具体的调度，这个函数会调用上下文切换的核心函数 `switch_to`，从而切换上下文，进而实现任务切换。下面具体分析 `switch_to` 函数。
+
+`switch_to` 函数采用汇编语言编写。首先交换 `t6` 寄存器与 `mscratch` 寄存器的值，`mscratch` 寄存器是用来保存当前任务的 `context` 地址的。如果此值为 0，表示是第一个任务，直接保存要调度的下个任务的 `context` 地址到 `mscratch` 寄存器中，同时用 `reg_store` 宏将下个任务的 `context` 中的值恢复到寄存器中。如果此值不为 0，先调用 `reg_save` 宏将当前的寄存器值保存到当前任务的 `context` 中，注意我们使用 `t6` 寄存器，所有保存完其他寄存器后，还要从 `mscratch` 中读出本来的寄存器值，保存到 `context` 的对应位置；保存完当前寄存器之后，再从下一个任务的 `context` 恢复寄存器，从而实现任务切换。
+
+[`code/os/03-contextswitch`](https://github.com/ludics/riscv-operating-system-mooc/tree/exercise/code/os/03-contextswitch) 只实现了切换到一个用户任务中，[`code/os/04-multitask`](https://github.com/ludics/riscv-operating-system-mooc/tree/exercise/code/os/04-multitask) 通过在用户任务函数中调用 `task_yield` 函数实现了多个用户任务的切换。
+
+### 练习结果
+
+练习的代码地址为 [ex_9_1](https://github.com/ludics/riscv-operating-system-mooc/tree/exercise/code/exercises/ex_9_1)，其中对应修改的 commit 为 [4e9f64875](https://github.com/ludics/riscv-operating-system-mooc/commit/4e9f64875f9c3bc6094a13794211695a84f236e9)。
+
+为了支持优先级调度与任务退出，新增了一些数据结构，如下所示：
 ```c
-#include "os.h"
+uint8_t task_priorities[MAX_TASKS];
 
-extern void *page_alloc(size_t n);
-extern void page_free(void *ptr);
+#define TASK_EMPTY 0
+#define TASK_READY 1
+#define TASK_RUNNING 2
+#define TASK_BLOCKED 3
+#define TASK_EXITED 4
 
-// | header | data | footer |
-#define BLOCK_USED 1
-#define BLOCK_PREV_USED 2
-#define BLOCK_FLAG (BLOCK_USED | BLOCK_PREV_USED)
+uint8_t task_status[MAX_TASKS];
 
-static inline void *_block_get_header(void *block_ptr) {
-  return block_ptr - sizeof(uint32_t);
-}
+#define task_schedulable(task_id) (task_status[task_id] == TASK_READY || task_status[task_id] == TASK_RUNNING)
+```
+其中 `task_priorities` 数组用于保存每个任务的优先级，`task_status` 数组用于保存每个任务的状态，`task_schedulable` 宏用于判断任务是否可调度。
 
-static inline int _block_is_used(void *block_ptr) {
-  void *block_header = block_ptr - sizeof(uint32_t);
-  return *(uint32_t *)block_header & BLOCK_USED;
-}
-
-static inline void _block_set_used(void *block_ptr) {
-  void *block_header = block_ptr - sizeof(uint32_t);
-  *(uint32_t *)block_header |= BLOCK_USED;
-}
-
-static inline void _block_set_unused(void *block_ptr) {
-  void *block_header = block_ptr - sizeof(uint32_t);
-  *(uint32_t *)block_header &= ~BLOCK_USED;
-}
-
-// header 去除最后一位后，就是 block 的大小，单位是 4 字节
-static inline size_t _block_get_size(void *block_ptr) {
-  void *block_header = block_ptr - sizeof(uint32_t);
-  return *(uint32_t *)block_header & ~BLOCK_FLAG;
-}
-
-static inline void _block_set_size(void *block_ptr, size_t size) {
-  void *block_header = block_ptr - sizeof(uint32_t);
-  *(uint32_t *)block_header = size | (*(uint32_t *)block_header & BLOCK_FLAG);
-}
-
-static inline size_t _get_alloc_size(size_t size) {
-  size_t alloc_size = size + sizeof(uint32_t) * 2; // header + footer
-  if (alloc_size % 4 != 0) {
-    alloc_size += 4 - alloc_size % 4;
-  }
-  return alloc_size;
-}
-
-static inline void *_block_get_footer(void *block_ptr) {
-  return block_ptr + _block_get_size(block_ptr) - sizeof(uint32_t) * 2;
-}
-
-static inline void *_block_set_footer(void *block_ptr) {
-  void *footer = _block_get_footer(block_ptr);
-  void *header = _block_get_header(block_ptr);
-  *(uint32_t *)footer = *(uint32_t *)header;
-  return footer;
-}
-
-static inline void *_block_get_next(void *block_ptr) {
-  return block_ptr + _block_get_size(block_ptr);
-}
-
-static inline void *_block_get_prev(void *block_ptr) {
-  void *prev_footer = block_ptr - sizeof(uint32_t) * 2;
-  size_t prev_block_size = *(uint32_t *)prev_footer & ~BLOCK_FLAG;
-  return block_ptr - prev_block_size;
-}
-
-/*
-  内部维护一个页，记录当前页已经分配的情况，每次分配都从这个页中分配
-  如果这个页不够用了，用 page_alloc 分配一个新的页
-*/
-
-#define PAGE_SIZE 4096
-void *_mm_start = NULL;
-void *_mm_end = NULL;
-void *_mm_start_block = NULL;
-void *_mm_end_block = NULL;
-
-// 向 page 申请 1 个 page，返回 page 的起始地址
-void mm_init() {
-  _mm_start = page_alloc(1);
-  _mm_end = _mm_start + PAGE_SIZE; // _mm_end 为页的结束地址 + 4
-  // _mm_start 为 header 的地址，_mm_start_block 为第一个 block
-  // 的地址，_mm_end_block 为最后一个 block 的地址
-  _mm_start_block = _mm_start + sizeof(uint32_t);
-  _mm_end_block = _mm_end - sizeof(uint32_t);
-  _block_set_size(_mm_start_block, PAGE_SIZE - sizeof(uint32_t) * 2);
-  _block_set_unused(_mm_start_block);
-  _block_set_footer(_mm_start_block);
-  _block_set_size(_mm_end_block, sizeof(uint32_t) * 2);
-  _block_set_used(_mm_end_block);
-  _block_set_footer(_mm_end_block);
-}
-
-// 最多分配 64 M 内存，超过这个大小的分配失败
-#define MAX_MEM_ALLOC 64 * 1024 * 1024
-// 每个内存块有一个 header，记录这个内存块的大小，以及是否已经分配
-// 每个内存块有一个 footer，与 header 内容相同，合并内存块时使用
-
-void mm_print_blocks() {
-  void *block_ptr = _mm_start_block;
-  printf("-- start to print blocks --\n");
-  while (block_ptr <= _mm_end_block) {
-    void *last_block_ptr = block_ptr;
-    printf("\tblock: %p, size: %d, used: %d\n", block_ptr,
-           (int)_block_get_size(block_ptr), _block_is_used(block_ptr));
-    block_ptr = _block_get_next(block_ptr);
-    if (block_ptr == last_block_ptr) {
-      printf("\tblock: %p, size: %d, used: %d\n", block_ptr,
-             (int)_block_get_size(block_ptr), _block_is_used(block_ptr));
+`task_create` 函数的实现如下所示：
+```c
+int task_create(void (*start_routin)(void* param), void* param, uint8_t priority)
+{
+  int task_id = -1;
+  for (int i = 0; i < MAX_TASKS; i++) {
+    if (task_status[i] == TASK_EMPTY || task_status[i] == TASK_EXITED) {
+      task_id = i;
       break;
     }
   }
-  printf("-- end to print blocks --\n");
+  if (task_id == -1) {
+    return -1;
+  }
+  task_status[task_id] = TASK_READY;
+  task_priorities[task_id] = priority;
+  ctx_tasks[task_id].sp = (reg_t) &task_stack[task_id][STACK_SIZE];
+  ctx_tasks[task_id].ra = (reg_t) start_routin;
+  if (param != NULL) {
+    ctx_tasks[task_id].a0 = (reg_t) param;
+  }
+  return 0;
 }
+```
 
-void *mm_malloc(size_t size) {
-  // printf("malloc size: %d\n", (int)size);
-  size_t alloc_size = _get_alloc_size(size);
-  if (alloc_size > MAX_MEM_ALLOC) {
-    printf("malloc too large: %d\n", (int)alloc_size);
-    return NULL;
-  }
+`task_exit` 函数的实现如下所示：
+```c
+void task_exit(void)
+{
+  task_status[_current] = TASK_EXITED;
+  schedule();
+}
+```
 
-  void *block_ptr = _mm_start_block;
-  // 遍历所有的 block，找到第一个满足大小的 block，first fit 策略
-  int found = 0;
-  while (block_ptr < _mm_end_block) {
-    if (!_block_is_used(block_ptr) &&
-        _block_get_size(block_ptr) >= alloc_size) {
-      found = 1;
-      break;
+`schedule` 函数的实现如下所示：
+```c
+void schedule()
+{
+  uint8_t priority = 0xff;
+  for (int i = 0; i < MAX_TASKS; i++) {
+    if (task_schedulable(i) && task_priorities[i] < priority) {
+      priority = task_priorities[i];
     }
-    block_ptr = _block_get_next(block_ptr);
   }
-  if (!found) {
-    // printf("malloc failed: %d\n", (int)alloc_size);
-    // return NULL;
-    // 如果没有找到满足大小的 block，申请一个新的页
-    void *cur_end = _mm_end;
-    int num_of_new_alloc_pages = 0;
-    while (!found) {
-      void *new_page = page_alloc(1);
-      num_of_new_alloc_pages++;
-      if (new_page == NULL) {
-        printf("malloc failed: %d, already alloc %d pages\n", (int)alloc_size,
-               num_of_new_alloc_pages);
-        // 找到 _mm_end_block 前一个 block，将这个 block 设置为最后一个 block
-        void *last_block_ptr = _mm_start_block;
-        while (last_block_ptr < _mm_end_block) {
-          if (_block_get_next(last_block_ptr) == _mm_end_block) {
-            break;
-          }
-          last_block_ptr = _block_get_next(last_block_ptr);
-        }
-        _mm_end_block = cur_end - sizeof(uint32_t);
-        _block_set_size(_mm_end_block, sizeof(uint32_t) * 2);
-        _block_set_used(_mm_end_block);
-        _block_set_footer(_mm_end_block);
-        if (last_block_ptr != _mm_end_block) {
-          size_t last_block_size = _mm_end_block - last_block_ptr;
-          _block_set_size(last_block_ptr, last_block_size);
-          _block_set_footer(last_block_ptr);
-        }
-        // 回收新申请的页，恢复到 cur_end
-        while (_mm_end > cur_end) {
-          _mm_end -= PAGE_SIZE;
-          page_free(_mm_end);
-        }
-        if (_mm_end_block != _mm_end - sizeof(uint32_t)) {
-          panic("_mm_end_block != _mm_end - sizeof(uint32_t)");
-        }
-        return NULL;
-      }
-      if (new_page != _mm_end) {
-        panic("new_page != _mm_end");
-      }
-
-      _mm_end += PAGE_SIZE;
-      // 尝试与当前的最后一个 block 合并
-      void *last_block_ptr = _block_get_prev(_mm_end_block);
-      if (!_block_is_used(last_block_ptr)) {
-        size_t last_block_size = _block_get_size(last_block_ptr);
-        _block_set_size(last_block_ptr, last_block_size + PAGE_SIZE);
-        _block_set_unused(last_block_ptr);
-        _block_set_footer(last_block_ptr);
-      } else {
-        last_block_ptr = _mm_end_block;
-        _block_set_size(last_block_ptr, PAGE_SIZE);
-        _block_set_unused(last_block_ptr);
-        _block_set_footer(last_block_ptr);
-      }
-      // 设置新的 _mm_end_block
-      _mm_end_block = _mm_end - sizeof(uint32_t);
-      _block_set_size(_mm_end_block, sizeof(uint32_t) * 2);
-      _block_set_used(_mm_end_block);
-      _block_set_footer(_mm_end_block);
-      // printf("alloc a new page: %p\n", new_page);
-      // 检查新分配的块是否满足要求
-      if (!_block_is_used(last_block_ptr) &&
-          _block_get_size(last_block_ptr) >= alloc_size) {
-        found = 1;
-        block_ptr = last_block_ptr;
+  int next_task_id = -1;
+  for (int i = 0; i < MAX_TASKS; i++) {
+    if (task_schedulable(i) && task_priorities[i] == priority) {
+      if (i > _current) {
+        next_task_id = i;
         break;
       }
     }
-    // printf("alloc %d pages\n", num_of_new_alloc_pages);
   }
-  // 找到满足大小的 block，分配这个 block
-  _block_set_used(block_ptr);
-  _block_set_footer(block_ptr);
-  size_t block_size = _block_get_size(block_ptr);
-  if (block_size > alloc_size) {
-    // 如果这个 block 大于需要的大小，分割这个 block
-    _block_set_size(block_ptr, alloc_size);
-    _block_set_used(block_ptr);
-    _block_set_footer(block_ptr);
-    void *next_block_ptr = _block_get_next(block_ptr);
-    _block_set_size(next_block_ptr, block_size - alloc_size);
-    _block_set_unused(next_block_ptr);
-    _block_set_footer(next_block_ptr);
+  if (next_task_id == -1) {
+    for (int i = 0; i < MAX_TASKS; i++) {
+      if (task_schedulable(i) && task_priorities[i] == priority) {
+        next_task_id = i;
+        break;
+      }
+    }
   }
-  return block_ptr;
-}
-
-void mm_free(void *ptr) {
-  // printf("free: %p\n", ptr);
-  if (ptr == NULL) {
+  if (next_task_id == -1) {
+    panic("no schedulable task");
     return;
   }
-  _block_set_unused(ptr);
-  void *next_block_ptr = _block_get_next(ptr);
-  size_t next_block_size = _block_get_size(next_block_ptr);
-  int next_block_used = _block_is_used(next_block_ptr);
-  // printf("next_block_ptr: %p, size: %d, used: %d\n", next_block_ptr,
-  // (int)next_block_size, next_block_used);
-  if (next_block_ptr != ptr && next_block_ptr <= _mm_end_block &&
-      !next_block_used) {
-    _block_set_size(ptr, _block_get_size(ptr) + next_block_size);
-    _block_set_footer(ptr);
+  if (next_task_id == _current) {
+    task_status[_current] = TASK_RUNNING;
+    return;
   }
-  void *prev_block_ptr = _block_get_prev(ptr);
-  size_t prev_block_size = _block_get_size(prev_block_ptr);
-  int prev_block_used = _block_is_used(prev_block_ptr);
-  // printf("prev_block_ptr: %p, size: %d, used: %d\n", prev_block_ptr,
-  // (int)prev_block_size, prev_block_used);
-  if (prev_block_ptr != ptr && prev_block_ptr >= _mm_start_block &&
-      !prev_block_used) {
-    _block_set_size(prev_block_ptr, _block_get_size(ptr) + prev_block_size);
-    _block_set_footer(prev_block_ptr);
+  _current = next_task_id;
+  struct context* next = &(ctx_tasks[_current]);
+  task_status[_current] = TASK_RUNNING;
+  switch_to(next);
+}
+```
+
+使用如下函数进行测试：
+```c
+void user_task(void* param) {
+  int task_id = (int)param;
+  printf("Task %d: Created!\n", task_id);
+  int iter_cnt = task_id;
+  while (1) {
+    printf("Task %d: Running...\n", task_id);
+    task_delay(DELAY);
+    task_yield();
+    if (iter_cnt-- == 0) {
+      break;
+    }
   }
+  printf("Task %d: Finished!\n", task_id);
+  task_exit();
 }
 
-struct test_struct {
-  int a;
-  int b;
-  int c;
-};
-
-void mm_test() {
-  printf("mm_test:\n");
-  // test alloc too large
-  mm_print_blocks();
-  void *p = mm_malloc(MAX_MEM_ALLOC + 1);
-  printf("malloc too large: %p\n", p);
-  struct test_struct *test = mm_malloc(sizeof(struct test_struct));
-  printf("test_struct: %p\n", test);
-  test->a = 1;
-  test->b = 2;
-  test->c = 3;
-  printf("test_struct: %d %d %d\n", test->a, test->b, test->c);
-  mm_print_blocks();
-  void *block_4096 = mm_malloc(4096);
-  printf("block_4096: %p\n", block_4096);
-  mm_print_blocks();
-  void *test_2 = mm_malloc(sizeof(struct test_struct));
-  printf("test_2: %p\n", test_2);
-  mm_print_blocks();
-  void *block_4000 = mm_malloc(4000);
-  printf("block_4000: %p\n", block_4000);
-  mm_print_blocks();
-  void *block_4096x3 = mm_malloc(4096 * 3);
-  printf("block_4096x3: %p\n", block_4096x3);
-  mm_print_blocks();
-
-  printf("\n start to test free\n");
-  mm_free(test_2);
-  printf("free test_2\n");
-  mm_print_blocks();
-  mm_free(block_4000);
-  printf("free block_4000\n");
-  mm_print_blocks();
-  mm_free(block_4096);
-  printf("free block_4096\n");
-  mm_print_blocks();
-  mm_free(block_4096x3);
-  printf("free block_4096x3\n");
-  mm_print_blocks();
-  mm_free(test);
-  printf("free test\n");
-  mm_print_blocks();
-
-  // test alloc too large
-  printf("\n start to test alloc too large\n");
-  void *block_32M = mm_malloc(32 * 1024 * 1024);
-  printf("block_32M: %p\n", block_32M);
-  mm_print_blocks();
-  void *block_32M_2 = mm_malloc(32 * 1024 * 1024);
-  printf("block_32M_2: %p\n", block_32M_2);
-  mm_print_blocks();
-  void *block_32M_3 = mm_malloc(32 * 1024 * 1024);
-  printf("block_32M_3: %p\n", block_32M_3);
-  mm_print_blocks();
-  // make last used
-  void *block_4056 = mm_malloc(4056);
-  printf("block_4056: %p\n", block_4056);
-  mm_print_blocks();
-  void *block_32M_4 = mm_malloc(32 * 1024 * 1024);
-  printf("block_32M_4: %p\n", block_32M_4);
-  mm_print_blocks();
-
-  // test free
-  printf("\n start to test free\n");
-  mm_free(block_32M_4);
-  printf("free block_32M_4\n");
-  mm_print_blocks();
-  mm_free(block_32M_3);
-  printf("free block_32M_3\n");
-  mm_print_blocks();
-  mm_free(block_32M_2);
-  printf("free block_32M_2\n");
-  mm_print_blocks();
-  mm_free(block_32M);
-  printf("free block_32M\n");
-  mm_print_blocks();
-  mm_free(block_4056);
-  printf("free block_4056\n");
-  mm_print_blocks();
+/* NOTICE: DON'T LOOP INFINITELY IN main() */
+void os_main(void)
+{
+  task_create(user_task1, (NULL), 255);
+  task_create(user_task, (void *)3, 0);
+  task_create(user_task, (void *)4, 0);
+  task_create(user_task, (void *)5, 1);
 }
+```
+
+运行结果如下所示：
+```
+Task 3: Created!
+Task 3: Running...
+Task 4: Created!
+Task 4: Running...
+Task 3: Running...
+Task 4: Running...
+Task 3: Running...
+Task 4: Running...
+Task 3: Running...
+Task 4: Running...
+Task 3: Finished!
+Task 4: Running...
+Task 4: Finished!
+Task 5: Created!
+Task 5: Running...
+Task 5: Running...
+Task 5: Running...
+Task 5: Running...
+Task 5: Running...
+Task 5: Running...
+Task 5: Finished!
+Task 1: Created!
+Task 1: Running...
+Task 1: Running...
+Task 1: Running...
+Task 1: Running...
+Task 1: Running...
+Task 1: Running...
+......
+```
+
+## 9-2
+
+> 目前 [`code/os/04-multitask`](https://github.com/ludics/riscv-operating-system-mooc/tree/exercise/code/os/04-multitask) 实现的任务调度中，前一个用户任务直接调用 `task_yield()` 函数并最终调用`switch_to()` 切换到下一个用户任务。`task_yield()` 作为内核路径借用了用户任务的栈，当用户任务的函数调用层次过多或者 task_yield() 本身函数内部继续调用函数，可能会导致用户任务的栈空间溢出。参考 "[mini-riscv-os](https://github.com/cccriscv/mini-riscv-os)" 的 [03-MultiTasking](https://github.com/cccriscv/mini-riscv-os/tree/master/03-MultiTasking) 的实现，为内核调度单独实现一个任务，在任务切换中，前一个用户任务首先切换到内核调度任务，然后再由内核调度任务切换到下一个用户任务，这样就可以避免前面提到的问题了。
+> 要求：参考以上设计，并尝试实现之。
+
+具体实现参考 [61fe623a225c](https://github.com/ludics/riscv-operating-system-mooc/commit/61fe623a225c483669d386a1a0749708a1164d8a)。
+
+首先在 `start_kernel()` 函数中，将
+```c
+os_main();
+schedule();
+```
+修改为
+```c
+os_main();
+while (1) {
+  schedule();
+}
+```
+
+创建一个内核上下文结构 `ctx_os`，并在 `sched_init()` 中将 `mscratch` 寄存器设置为 `ctx_os` 的地址：
+```c
+struct context ctx_os;
+
+void sched_init(void)
+{
+  mscratch_write((reg_t) &ctx_os);
+}
+```
+这样在 `start_kernel()` 第一次调用 `schedule()` 时，会切换到用户任务上下文，同时将当前的任务上下文保存到 `ctx_os` 中。
+
+利用 `back_to_os()` 函数实现从用户任务切换到内核任务：
+```c
+void back_to_os(void)
+{
+  struct context* next = &(ctx_os);
+  switch_to(next);
+}
+```
+最后，修改 `task_yield()` 与 `task_exit()` 函数，使得它们调用 `back_to_os()` 函数：
+```c
+void task_yield(void)
+{
+  task_status[_current] = TASK_READY;
+  back_to_os();
+}
+
+void task_exit(void)
+{
+  task_status[_current] = TASK_EXITED;
+  back_to_os();
+}
+```
+
+这样，用户任务切换的流程就变成了：
+```
+user_task -> task_yield -> back_to_os -> switch_to(ctx_os) -> schedule -> switch_to(ctx_user) -> user_task
+```
+而之前的流程是：
+```
+user_task -> task_yield -> schedule -> switch_to(ctx_user) -> user_task
+```
+
+## 13-1
+
+> 要求：在 [练习 9-1]({{< relref "/posts/rvos-exercise-iii.md#9-1" >}}) 的基础上进一步改进任务管理功能，增加任务优先级的管理。具体要求：改进 `task_create()`，增加时间片（`timeslice`）参数，具体改进后的函数如下所示：
+> ```c
+> int task_create(void (*task)(void *param), void *param,
+>                 uint8_t priority, uint32_t timeslice);
+> ```
+> 其中：
+> - 其他参数含义不变，见 [练习 9-1]({{< relref "/posts/rvos-exercise-iii.md#9-1" >}}) 的描述；
+> - `timeslice`: 任务的时间片大小，单位是操作系统的时钟节拍（tick），此参数指定该任务一次调度可以运行的最大时间⻓度。和 `priotity` 相结合，调度器会首先根据 `priority` 选择优先级最高的任务运行，而 `timeslice` 则决定了当没有更高优先级的任务时，当前正在运行的任务可以运行的最大时间⻓度。
+
+先实现任务的优先级调度，基本将 [练习 9-1]({{< relref "/posts/rvos-exercise-iii.md#9-1" >}}) 的代码 copy 了一下，提交见 [6dda145](https://github.com/ludics/riscv-operating-system-mooc/commit/6dda145acd3217d97b1850409f4e76fa9031845b)。
+
+接下来再实现时间片的功能。
+
+首先，增加 `task_timeslice` 数组，用于保存每个任务的时间片大小：
+
+```c
+uint32_t task_timeslice[MAX_TASKS];
+```
+
+然后，需要在 `task_create()` 中将 `timeslice` 传递给 `task_timeslice`：
+
+```c
+int task_create(void (*task)(void *param), void *param,
+                uint8_t priority, uint32_t timeslice)
+{
+    ...
+    task_priorities[task_id] = priority;
+    task_timeslice[task_id] = timeslice;
+    ...
+}
+```
+之后，需要在 `schedule()` 中实现时间片的功能。首先，需要增加一个 `_cur_timeslice` 变量，表示当前正在运行的任务已经运行的时间片大小：
+
+```c
+static int _cur_timeslice = 0;
+```
+然后，需要在 `schedule()` 中实现时间片的功能：
+
+```c
+void schedule(void)
+{
+    ...
+    // 如果当前没有任务在运行，或者当前任务已经退出，则选择下一个任务
+	if (_current == -1 || task_status[_current] == TASK_EXITED) {
+		_current = next_task_id;
+		_cur_timeslice = 1;
+	// 检查下个任务的优先级是否比当前任务高，如果高则切换
+	// 如果优先级相同，则检查当前任务的时间片是否用完
+	} else if (task_priorities[next_task_id] < task_priorities[_current] ||
+			(task_priorities[next_task_id] == task_priorities[_current] &&
+			 task_timeslice[_current] <= _cur_timeslice )) {
+		_current = next_task_id;
+		_cur_timeslice = 1;
+	} else {
+		_cur_timeslice++;
+	}
+    ...
+}
+```
+这样就完成了修改，代码提交见 [436aa37](https://github.com/ludics/riscv-operating-system-mooc/commit/436aa373f9570fc76aae351e100eb3a8ecb13a34)。
+
+我们再对这个修改进行测试，在 `os_main` 中调用 `task_create` 创建任务时传递 `timeslice` 参数，测试代码如下：
+
+```c
+void os_main(void)
+{
+	task_create(user_task, (void *)3000, 0, 2);
+	task_create(user_task, (void *)8003, 3, 2);
+	task_create(user_task, (void *)2003, 3, 3);
+	task_create(user_task, (void *)5000, 0, 3);
+	task_create(user_task, (void *)9003, 3, 4);
+	task_create(user_task, (void *)6001, 1, 3);
+	task_create(user_task, (void *)7001, 1, 2);
+	task_create(user_task, (void *)4000, 0, 4);
+}
+```
+这里我们创建了 8 个任务，其中 3 个优先级为 0，2 个优先级为 1，3 个优先级为 3。其中相同优先级的任务的时间片也都不同，这样可以测试时间片的功能。`make run` 将操作系统跑起来后，运行结果为：
+```
+Hello, RVOS!
+...
+Task 3000: Created!
+Task 3000: Running...
+Task 3000: Running...
+Task 3000: Running...
+timer interruption!
+tick: 1
+Task 3000: Running...
+Task 3000: Running...
+timer interruption!
+tick: 2
+Task 5000: Created!
+Task 5000: Running...
+Task 5000: Running...
+Task 5000: Running...
+timer interruption!
+tick: 3
+Task 5000: Running...
+Task 5000: Running...
+timer interruption!
+tick: 4
+Task 5000: Running...
+Task 5000: Running...
+timer interruption!
+tick: 5
+Task 4000: Created!
+Task 4000: Running...
+Task 4000: Running...
+Task 4000: Running...
+timer interruption!
+tick: 6
+Task 4000: Running...
+Task 4000: Running...
+timer interruption!
+tick: 7
+Task 4000: Running...
+Task 4000: Running...
+timer interruption!
+tick: 8
+Task 4000: Running...
+Task 4000: Running...
+timer interruption!
+tick: 9
+Task 3000: Running...
+Task 3000: Running...
+timer interruption!
+tick: 10
+Task 3000: Running...
+Task 3000: Running...
+timer interruption!
+tick: 11
+Task 5000: Running...
+Task 5000: Running...
+timer interruption!
+tick: 12
+Task 5000: Running...
+Task 5000: Running...
+timer interruption!
+tick: 13
+Task 5000: Running...
+Task 5000: Running...
+timer interruption!
+tick: 14
+Task 4000: Running...
+Task 4000: Running...
+timer interruption!
+tick: 15
+...
 ```
