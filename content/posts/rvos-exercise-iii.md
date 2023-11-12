@@ -1,5 +1,5 @@
 ---
-title: "Rvos Exercise Notes III"
+title: "RVOS Exercise Notes III"
 date: 2023-09-10T22:35:46+08:00
 draft: false
 ---
